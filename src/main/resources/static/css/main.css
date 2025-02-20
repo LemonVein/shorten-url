@@ -1,0 +1,205 @@
+body {
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.6;
+    color: #202124;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+}
+
+/* 헤더 스타일 */
+h1 {
+    color: #1a73e8;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 500;
+}
+
+/* 폼 기본 스타일 */
+form {
+    background-color: #fff;
+    padding: 16px;
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dadce0;
+}
+
+/* 라벨 스타일 */
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #5f6368;
+    text-align: left;
+}
+
+/* 입력 필드 */
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    font-size: 16px;
+    outline: none;
+    transition: border 0.3s ease;
+}
+
+input[type="text"]:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 4px rgba(26, 115, 232, 0.3);
+}
+
+/* 버튼 스타일 (일관성 유지) */
+button{
+    background-color: #1a73e8;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+    display: inline-block;
+    text-decoration: none;
+    text-align: center;
+}
+
+.top-nav {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 10px 20px;
+    gap: 15px;
+}
+
+.top-nav p {
+    margin-right: 15px;
+    font-weight: bold;
+}
+
+.top-nav .login-button {
+    padding: 8px 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+button:hover, .login-button:hover {
+    background-color: #174ea6;
+    transform: translateY(-2px);
+}
+
+/* URL 입력 폼 */
+#urlForm {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#urlForm input {
+    flex: 1;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    outline: none;
+}
+
+#urlForm input:focus {
+    border: 1px solid #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+}
+
+/* 결과 박스 */
+.result {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f1f3f4;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #dadce0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.result a {
+    color: #1a73e8;
+    text-decoration: none;
+    font-weight: 500;
+    word-break: break-word;
+}
+
+.result a:hover {
+    text-decoration: underline;
+}
+
+#urlListSection {
+    margin-top: 20px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid #dadce0;
+}
+
+#urlList {
+    list-style: none;
+    padding: 0;
+}
+
+#urlList li {
+    padding: 10px;
+    border-bottom: 1px solid #dadce0;
+    margin: 10px 0;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    word-wrap: break-word;
+}
+
+#urlList li:last-child {
+    border-bottom: none;
+}
+
+/* 사용자 정보 */
+.user-info {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #f1f3f4;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #dadce0;
+    font-weight: 500;
+    color: #5f6368;
+}
+
+/* 로그아웃 폼 스타일 삭제 */
+form[action="/logout"] {
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 600px) {
+    #urlForm {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    #urlForm input,
+    #urlForm button {
+        width: 100%;
+    }
+}
