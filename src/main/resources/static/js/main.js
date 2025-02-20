@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (token) {
         try {
-            const response = await fetch("/status", {
+            const response = await fetch("/api/status", {
                 method: "GET",
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const token = localStorage.getItem("token")
 
-            const response = await fetch("/shorten_url", {
+            const response = await fetch("/api/shorten_url", {
                 method: "POST",
                 headers: { "Content-Type": "application/x-www-form-urlencoded",
                            "Authorization": token ? `Bearer ${token}` : ""},
@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function fetchUserUrls() {
     const token = localStorage.getItem("token")
-    fetch("/my-urls", {
+    fetch("/api/my-urls", {
         method: "GET",
         headers: { "Content-Type": "application/x-www-form-urlencoded",
             "Authorization": token ? `Bearer ${token}` : ""},

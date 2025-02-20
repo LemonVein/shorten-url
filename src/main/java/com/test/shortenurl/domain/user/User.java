@@ -3,8 +3,6 @@ package com.test.shortenurl.domain.user;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.Set;
-
 @Builder
 @Entity
 @NoArgsConstructor
