@@ -5,7 +5,7 @@
     <link rel="stylesheet" href="/css/login.css" />
 </head>
 <body>
-<h1>Login Page</h1>
+<h1>Sign in to Shorten Url</h1>
 <form onsubmit="login(event)">
     <label for="username">Username:</label>
     <input type="text" id="username" name="username" required>

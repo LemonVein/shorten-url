@@ -13,6 +13,9 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -22,10 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @Getter
@@ -35,6 +35,7 @@ public class UrlService {
     private final UrlRepository urlRepository;
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
 
     private static final String BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -116,6 +117,36 @@ public class UrlService {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Can't registered");
         }
 
+    }
+
+    public Map<String, Object> checkStatus(HttpServletRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        String username = getCurrentUsername(request);
+
+        boolean isAuthenticated = username != null && isValidUsername(username);
+
+        response.put("isAuthenticated", isAuthenticated);
+
+        if (isAuthenticated) {
+            response.put("username", username);
+        }
+
+        return response;
+    }
+
+    public ResponseEntity<?> tryLogin(String username, String password) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(username, password)
+            );
+
+            String token = jwtTokenProvider.generateToken(authentication);
+
+            return ResponseEntity.ok(Map.of("token", token));
+        } catch (Exception e) {
+            System.out.println(e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+        }
     }
 
     private String generateShortUrl(String originalUrl) {

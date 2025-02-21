@@ -29,16 +29,7 @@ public class UrlApiController {
 
     @GetMapping("/status")
     public Map<String, Object> getAuthStatus(HttpServletRequest request) {
-        Map<String, Object> response = new HashMap<>();
-        String username = urlService.getCurrentUsername(request);
-
-        boolean isAuthenticated = username != null && urlService.isValidUsername(username);
-
-        response.put("isAuthenticated", isAuthenticated);
-
-        if (isAuthenticated) {
-            response.put("username", username);
-        }
+        Map<String, Object> response = urlService.checkStatus(request);
 
         return response;
     }

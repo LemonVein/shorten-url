@@ -16,23 +16,10 @@ import java.util.Map;
 @RequestMapping("/auth")
 public class AuthController {
     private final UrlService urlService;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final AuthenticationManager authenticationManager;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestParam String username, String password) {
-        try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(username, password)
-            );
-
-            String token = jwtTokenProvider.generateToken(authentication);
-
-            return ResponseEntity.ok(Map.of("token", token));
-        } catch (Exception e) {
-            System.out.println(e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
-        }
+        return urlService.tryLogin(username, password);
     }
 
     @PostMapping("/register")
