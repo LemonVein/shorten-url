@@ -26,6 +26,14 @@ form {
     border: 1px solid #dadce0;
 }
 
+#pagination {
+    text-align: center;
+}
+
+#urlListSection h2 {
+    text-align: center;
+}
+
 /* 라벨 스타일 */
 label {
     display: block;

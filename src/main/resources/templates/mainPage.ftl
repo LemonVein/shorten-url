@@ -30,6 +30,7 @@
     <section id="urlListSection" style="display: none;">
         <h2>Created Shorten URL</h2>
         <ul id="urlList"></ul>
+        <div id="pagination"></div>
     </section>
 </main>
 <script src="/js/main.js"></script>
