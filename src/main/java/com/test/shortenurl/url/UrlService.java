@@ -1,5 +1,6 @@
 package com.test.shortenurl.url;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.test.shortenurl.config.JwtTokenProvider;
 import com.test.shortenurl.domain.url.Url;
 import com.test.shortenurl.domain.url.UrlRepository;
@@ -11,6 +12,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -37,12 +39,19 @@ public class UrlService {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
+    private final RedisService redisService;
 
     private static final String BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final int BASE = 62;
 
     public String shortenUrl(String originalUrl, HttpServletRequest request) {
         String createdBy = getCurrentUsername(request);
+        String cacheKey = "shortUrl:" + originalUrl + ":" + createdBy;
+
+        String cachedShortUrl = redisService.getSingleData(cacheKey);
+        if (cachedShortUrl != null) {
+            return cachedShortUrl;  // 캐시된 URL이 있으면 바로 반환
+        }
 
         if (urlRepository.findByOriginalUrlAndCreatedBy(originalUrl, createdBy).isPresent()) {
             return urlRepository.findByOriginalUrlAndCreatedBy(originalUrl, createdBy).get().getShortUrl();
@@ -57,6 +66,8 @@ public class UrlService {
         urlMapping.setDeleted(false);
         urlMapping.setCreatedBy(createdBy);
         urlRepository.save(urlMapping);
+
+        redisService.saveSingleData(cacheKey, shortUrl);
 
         return shortUrl;
     }
@@ -78,12 +89,29 @@ public class UrlService {
         return anonId;
     }
 
-    public List<Url> getUrls(HttpServletRequest request) {
+    public List<Url> getUrls(HttpServletRequest request) throws JsonProcessingException {
         String username = getCurrentUsername(request);
-        return urlRepository.findByCreatedBy(username);
+
+        String urlsUsernameKey = "user:urls:" + username;
+
+        List<Url> cachedShortUrls = redisService.getListData(urlsUsernameKey);
+        if (cachedShortUrls != null) {
+            return cachedShortUrls;  // 캐시된 URL이 있으면 바로 반환
+        }
+        List<Url> shortUrls = urlRepository.findByCreatedByAndDeletedFalse(username);
+
+        redisService.saveListData(urlsUsernameKey, shortUrls);
+
+        return shortUrls;
     }
 
     public String getOriginalUrl(String shortUrl) {
+
+        String key = shortUrl + ":" + shortUrl;
+
+        if (redisService.getSingleData(key) != null) {
+            return redisService.getSingleData(key);
+        }
 
         Optional<Url> original = urlRepository.findByShortUrl(shortUrl);
 
@@ -92,6 +120,7 @@ public class UrlService {
             if (!originalUrl.startsWith("http://") && !originalUrl.startsWith("https://")) {
                 originalUrl = "https://" + originalUrl;
             }
+            redisService.saveSingleData(key, originalUrl);
             return originalUrl;
         }
         else {
@@ -158,7 +187,7 @@ public class UrlService {
 
             BigInteger decimal = new BigInteger(1, hash);
 
-            return encodeBase62(decimal).substring(0, 7); // 10자리로 잘라서 반환
+            return encodeBase62(decimal).substring(0, 7);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 Algorithm not found", e);
         }
@@ -183,7 +212,6 @@ public class UrlService {
         throw new RuntimeException("Failed to generate a unique short URL after " + maxAttempts + " attempts");
     }
 
-    // JWT 토큰을 헤더에서 추출하는 메서드
     private String extractTokenFromHeader(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
@@ -192,7 +220,6 @@ public class UrlService {
         return null;
     }
 
-    // 쿠키에서 익명 ID 가져오기
     private Optional<String> getAnonymousIdFromCookie(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
@@ -206,6 +233,25 @@ public class UrlService {
 
     public boolean isValidUsername(String username) {
         return username != null && !username.startsWith("ANON_");
+    }
+
+    public boolean deleteShortUrl(String shortUrl, HttpServletRequest request) {
+        String username = getCurrentUsername(request);
+        Optional<Url> original = urlRepository.findByShortUrlAndDeletedFalse(shortUrl);
+
+        if (original.isPresent()) {
+            Url url = original.get();
+            url.setDeleted(true);
+            urlRepository.save(url);
+
+            String urlsUsernameKey = "user:urls" + username;
+            redisService.deleteSingleData(urlsUsernameKey);
+
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
 }

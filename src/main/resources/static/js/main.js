@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (response.ok) {
                 const shortenCode = await response.text();
-                const shortenedUrl = `http://localhost:8080/connect/${shortenCode}`;
+                const shortenedUrl = `http://localhost:8080/${shortenCode}`;
                 alert(`Shortened URL: ${shortenedUrl}`);
 
                 resultA.href = shortenedUrl;
@@ -102,7 +102,7 @@ function fetchUserUrls() {
             return response.json();
         })
         .then(urls => {
-            urlData = urls; // 전체 데이터 저장
+            urlData = urls.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // 전체 데이터 저장
             currentPage = 1; // 페이지 초기화
             renderPage(); // 페이지 렌더링
         })
@@ -129,7 +129,7 @@ function renderPage() {
     paginatedData.forEach(url => {
         const listItem = document.createElement("li");
         listItem.innerHTML = `<p>original URL : ${url.originalUrl} </p>
-                              <a href="/connect/${url.shortUrl}" target="_blank">localhost:8080/connect/${url.shortUrl}</a>`;
+                              <a href="/${url.shortUrl}" target="_blank">localhost:8080/${url.shortUrl}</a>`;
         urlList.appendChild(listItem);
     });
 

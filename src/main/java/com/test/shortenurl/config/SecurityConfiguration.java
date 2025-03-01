@@ -4,6 +4,7 @@ import com.test.shortenurl.user.CustomUserDetailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -30,7 +31,8 @@ public class SecurityConfiguration {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers( "/main", "/connect/**").permitAll() // 공개 URL 허용
+                        .requestMatchers( "/main").permitAll() // 공개 URL 허용
+                        .requestMatchers(HttpMethod.GET, "/{shortenCode}").permitAll()
                         .requestMatchers("/public/**", "/css/**", "/js/**", "/images/**").permitAll() // 정적 리소스 허용
                         .requestMatchers("/login", "/auth/login", "/register","/auth/register").permitAll()
                         .requestMatchers("/api/shorten_url").permitAll() // api 요청 허용
