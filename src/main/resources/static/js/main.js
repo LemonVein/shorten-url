@@ -129,11 +129,43 @@ function renderPage() {
     paginatedData.forEach(url => {
         const listItem = document.createElement("li");
         listItem.innerHTML = `<p>original URL : ${url.originalUrl} </p>
-                              <a href="/${url.shortUrl}" target="_blank">localhost:8080/${url.shortUrl}</a>`;
+                              <a href="/${url.shortUrl}" target="_blank">localhost:8080/${url.shortUrl}</a>
+                              <button class="delete-btn" data-shorturl="${url.shortUrl}">Delete</button>
+        `;
         urlList.appendChild(listItem);
     });
 
+    document.querySelectorAll(".delete-btn").forEach(button => {
+        button.addEventListener("click", async (event) => {
+            const shortUrl = event.target.getAttribute("data-shorturl");
+            await deleteUrl(shortUrl);
+        });
+    });
+
     createPaginationButtons();
+}
+
+async function deleteUrl(shortUrl) {
+    const token = localStorage.getItem("token");
+
+    try {
+        const response = await fetch(`/api/${shortUrl}`, {
+            method: "DELETE",
+            headers: {
+                "Authorization": token ? `Bearer ${token}` : "",
+            }
+        });
+
+        if (response.ok) {
+            alert("URL deleted successfully!");
+            fetchUserUrls(); // 삭제 후 목록 다시 불러오기
+        } else {
+            alert("Failed to delete URL.");
+        }
+    } catch (error) {
+        console.error("Error deleting URL:", error);
+        alert("An error occurred while deleting the URL.");
+    }
 }
 
 function createPaginationButtons() {

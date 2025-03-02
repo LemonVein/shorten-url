@@ -3,6 +3,7 @@
 <head>
     <title>Login</title>
     <link rel="stylesheet" href="/css/login.css" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 </head>
 <body>
 <h1>Sign in to Shorten Url</h1>

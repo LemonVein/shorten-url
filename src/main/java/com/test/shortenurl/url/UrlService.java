@@ -4,23 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.test.shortenurl.config.JwtTokenProvider;
 import com.test.shortenurl.domain.url.Url;
 import com.test.shortenurl.domain.url.UrlRepository;
-import com.test.shortenurl.domain.user.User;
 import com.test.shortenurl.domain.user.UserRepository;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
-import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -40,12 +30,13 @@ public class UrlService {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final RedisService redisService;
+    private final AuthService authService;
 
     private static final String BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final int BASE = 62;
 
     public String shortenUrl(String originalUrl, HttpServletRequest request) {
-        String createdBy = getCurrentUsername(request);
+        String createdBy = authService.getCurrentUsername(request);
         String cacheKey = "shortUrl:" + originalUrl + ":" + createdBy;
 
         String cachedShortUrl = redisService.getSingleData(cacheKey);
@@ -69,34 +60,21 @@ public class UrlService {
 
         redisService.saveSingleData(cacheKey, shortUrl);
 
+        String urlsUsernameKey = "user:urls:" + createdBy;
+
+        redisService.deleteSingleData(urlsUsernameKey);
+
         return shortUrl;
     }
 
-    public String getCurrentUsername(HttpServletRequest request) {
-        String token = extractTokenFromHeader(request);
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-            return jwtTokenProvider.getUsernameFromToken(token);
-        }
-
-        HttpSession session = request.getSession();
-        String anonId = (String) session.getAttribute("ANON_ID");
-
-        if (anonId == null) {
-            anonId = "ANON_" + UUID.randomUUID(); // ✅ 익명 ID에 'ANON_' 프리픽스 추가
-            session.setAttribute("ANON_ID", anonId);
-        }
-
-        return anonId;
-    }
-
     public List<Url> getUrls(HttpServletRequest request) throws JsonProcessingException {
-        String username = getCurrentUsername(request);
+        String username = authService.getCurrentUsername(request);
 
         String urlsUsernameKey = "user:urls:" + username;
 
         List<Url> cachedShortUrls = redisService.getListData(urlsUsernameKey);
         if (cachedShortUrls != null) {
-            return cachedShortUrls;  // 캐시된 URL이 있으면 바로 반환
+            return cachedShortUrls;
         }
         List<Url> shortUrls = urlRepository.findByCreatedByAndDeletedFalse(username);
 
@@ -113,7 +91,7 @@ public class UrlService {
             return redisService.getSingleData(key);
         }
 
-        Optional<Url> original = urlRepository.findByShortUrl(shortUrl);
+        Optional<Url> original = urlRepository.findByShortUrlAndDeletedFalse(shortUrl);
 
         if (original.isPresent()) {
             String originalUrl = original.get().getOriginalUrl();
@@ -124,57 +102,7 @@ public class UrlService {
             return originalUrl;
         }
         else {
-            return "url does not exist";
-        }
-    }
-
-    @Transactional
-    public ResponseEntity<?> registerUser(String username, String password) {
-        if (userRepository.existsByUserName(username)){
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
-        }
-
-        User user = User.builder()
-                .userName(username)
-                .password(passwordEncoder.encode(password))
-                .role("ROLE_USER")
-                .build();
-        try {
-            userRepository.save(user);
-            return ResponseEntity.ok(Map.of("message", "registered Ok"));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Can't registered");
-        }
-
-    }
-
-    public Map<String, Object> checkStatus(HttpServletRequest request) {
-        Map<String, Object> response = new HashMap<>();
-        String username = getCurrentUsername(request);
-
-        boolean isAuthenticated = username != null && isValidUsername(username);
-
-        response.put("isAuthenticated", isAuthenticated);
-
-        if (isAuthenticated) {
-            response.put("username", username);
-        }
-
-        return response;
-    }
-
-    public ResponseEntity<?> tryLogin(String username, String password) {
-        try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(username, password)
-            );
-
-            String token = jwtTokenProvider.generateToken(authentication);
-
-            return ResponseEntity.ok(Map.of("token", token));
-        } catch (Exception e) {
-            System.out.println(e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+            return null;
         }
     }
 
@@ -192,6 +120,7 @@ public class UrlService {
             throw new RuntimeException("SHA-256 Algorithm not found", e);
         }
     }
+
     private String encodeBase62(BigInteger number) {
         StringBuilder sb = new StringBuilder();
         while (number.compareTo(BigInteger.ZERO) > 0) {
@@ -212,31 +141,8 @@ public class UrlService {
         throw new RuntimeException("Failed to generate a unique short URL after " + maxAttempts + " attempts");
     }
 
-    private String extractTokenFromHeader(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
-    }
-
-    private Optional<String> getAnonymousIdFromCookie(HttpServletRequest request) {
-        if (request.getCookies() != null) {
-            for (Cookie cookie : request.getCookies()) {
-                if ("ANON_ID".equals(cookie.getName())) {
-                    return Optional.of(cookie.getValue());
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    public boolean isValidUsername(String username) {
-        return username != null && !username.startsWith("ANON_");
-    }
-
     public boolean deleteShortUrl(String shortUrl, HttpServletRequest request) {
-        String username = getCurrentUsername(request);
+        String username = authService.getCurrentUsername(request);
         Optional<Url> original = urlRepository.findByShortUrlAndDeletedFalse(shortUrl);
 
         if (original.isPresent()) {
@@ -244,8 +150,8 @@ public class UrlService {
             url.setDeleted(true);
             urlRepository.save(url);
 
-            String urlsUsernameKey = "user:urls" + username;
-            redisService.deleteSingleData(urlsUsernameKey);
+            String urlsUsernameKey = "user:urls:" + username;
+            boolean result = redisService.deleteSingleData(urlsUsernameKey);
 
             return true;
         }

@@ -21,12 +21,15 @@ public class ShortenUrlInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI().substring(1); // "/" 제거
 
         // 특정 경로(API, 인증 관련 등)는 무시
-        if (path.startsWith("api") || path.startsWith("auth") || path.startsWith("static") || path.startsWith("js") || path.startsWith("css")) {
+        if (path.startsWith("api") || path.startsWith("auth") || path.startsWith("static") || path.startsWith("js") ||
+                path.startsWith("css") || path.startsWith("favicon.ico") || path.startsWith("error") || path.startsWith("null")) {
             return true; // API, 인증 관련 요청은 건너뛴다.
         }
 
+        System.out.println("Checking URL: " + path);
+
         // 기존 페이지들과 충돌 방지 (이외의 값이면 단축 URL인지 확인)
-        if (!List.of("main", "register", "login").contains(path)) {
+        if (!List.of("main", "register", "login", "error", "null").contains(path)) {
             String originalUrl = urlService.getOriginalUrl(path);
             if (originalUrl != null) {
                 response.sendRedirect(originalUrl);

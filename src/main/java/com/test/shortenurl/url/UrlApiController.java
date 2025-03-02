@@ -7,7 +7,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,6 +15,7 @@ import java.util.Map;
 @RequestMapping("/api")
 public class UrlApiController {
     private final UrlService urlService;
+    private final AuthService authService;
 
     @PostMapping("/shorten_url")
     public String makeShortenUrl(@RequestParam String originalUrl, HttpServletRequest request){
@@ -31,12 +31,12 @@ public class UrlApiController {
 
     @GetMapping("/status")
     public Map<String, Object> getAuthStatus(HttpServletRequest request) {
-        Map<String, Object> response = urlService.checkStatus(request);
+        Map<String, Object> response = authService.checkStatus(request);
 
         return response;
     }
 
-    @GetMapping("/{shortenCode}")
+    @DeleteMapping("/{shortenCode}")
     public ResponseEntity<Void> deleteUrl(@PathVariable String shortenCode, HttpServletRequest request) {
         boolean result = urlService.deleteShortUrl(shortenCode, request);
         if (result) {

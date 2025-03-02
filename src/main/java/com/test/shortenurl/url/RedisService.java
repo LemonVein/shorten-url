@@ -53,8 +53,8 @@ public class RedisService {
         }
     }
 
-    public Void deleteSingleData(String key) {
-        redisTemplate.delete(key);
-        return null;
+    public boolean deleteSingleData(String key) {
+        boolean result = redisTemplate.delete(key);
+        return result;
     }
 }
