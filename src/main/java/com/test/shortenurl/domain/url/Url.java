@@ -21,7 +21,7 @@ public class Url {
     @Column(name = "shorten_url", nullable = false, unique = true)
     private String shortUrl;
 
-    @Column(name = "original_url", nullable = false)
+    @Column(name = "original_url", columnDefinition = "LONGTEXT", nullable = false)
     private String originalUrl;
 
     @Column(name = "created_at")

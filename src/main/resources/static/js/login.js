@@ -10,12 +10,13 @@ async function login(event) {
         body: new URLSearchParams({
             username: username,
             password: password
-        })
+        }),
+        credentials: "include"
     });
 
     if (response.ok) {
         const data = await response.json();
-        localStorage.setItem("token", data.token);
+        sessionStorage.setItem("token", data.token);
         window.location.href = "/main"; // 로그인 후 메인 페이지 이동
     } else {
         alert("Invalid username or password.");

@@ -34,7 +34,7 @@ public class SecurityConfiguration {
                         .requestMatchers( "/main").permitAll() // 공개 URL 허용
                         .requestMatchers(HttpMethod.GET, "/{shortenCode}").permitAll()
                         .requestMatchers("/public/**", "/css/**", "/js/**", "/images/**").permitAll() // 정적 리소스 허용
-                        .requestMatchers("/login", "/auth/login", "/register","/auth/register").permitAll()
+                        .requestMatchers("/login", "/auth/login", "/register","/auth/register", "auth/logout", "auth/refresh").permitAll()
                         .requestMatchers("/api/shorten_url").permitAll() // api 요청 허용
                         .anyRequest().authenticated() // 나머지 요청은 인증 필요
                 )

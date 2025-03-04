@@ -57,4 +57,13 @@ public class RedisService {
         boolean result = redisTemplate.delete(key);
         return result;
     }
+
+    public void saveRefreshToken(String key, String value) {
+        redisTemplate.opsForValue().set(key, value);
+        redisTemplate.expire(key, 7, TimeUnit.DAYS);
+    }
+
+    public String getRefreshToken(String key) {
+        return (String) redisTemplate.opsForValue().get(key);
+    }
 }

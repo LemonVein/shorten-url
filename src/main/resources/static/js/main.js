@@ -10,36 +10,35 @@ let urlData = [];
 document.addEventListener("DOMContentLoaded", async () => {
     const resultA = document.querySelector('div.result > a');
     const form = document.querySelector("#urlForm");
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     const name = document.querySelector(".username");
 
-    turnOffLogin();
+    await checkAuthStatus();
 
-    if (token) {
-        try {
-            const response = await fetch("/api/status", {
-                method: "GET",
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log("📌 사용자 정보:", data);
-
-                name.textContent = `Hello! ${data.username}`;
-                name.style.display = "block";
-
-                turnOnLogin();
-                fetchUserUrls();
-            } else {
-                console.warn("🚨 사용자 정보를 가져올 수 없음.");
-            }
-        } catch (error) {
-            console.error("🚨 사용자 정보 요청 중 오류 발생:", error);
-        }
-    } else {
-        turnOffLogin();
-    }
+    // turnOffLogin();
+    // if (token) {
+    //     try {
+    //         const response = await fetchWithToken("/api/status", {
+    //             method: "GET"
+    //         });
+    //
+    //         if (response.ok) {
+    //             const data = await response.json();
+    //
+    //             name.textContent = `Hello! ${data.username}`;
+    //             name.style.display = "block";
+    //
+    //             turnOnLogin();
+    //             fetchUserUrls();
+    //         } else {
+    //             console.warn("🚨 사용자 정보를 가져올 수 없음.");
+    //         }
+    //     } catch (error) {
+    //         console.error("🚨 사용자 정보 요청 중 오류 발생:", error);
+    //     }
+    // } else {
+    //     turnOffLogin();
+    // }
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -49,7 +48,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         formData.append("originalUrl", originalUrl.value);
 
         try {
-            const token = localStorage.getItem("token")
+            const token = sessionStorage.getItem("token")
 
             const response = await fetch("/api/shorten_url", {
                 method: "POST",
@@ -69,7 +68,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 originalUrl.value = "";
 
                 if (token) {
-                    fetchUserUrls();
+                    await fetchUserUrls();
                 }
             } else {
                 alert("Failed to create shortened URL");
@@ -79,36 +78,53 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    document.getElementById("logoutForm").addEventListener("submit", (event) => {
+    document.getElementById("logoutForm").addEventListener("submit", async (event) => {
         event.preventDefault();
-        localStorage.removeItem("token");
-        name.textContent = ``;
-        name.style.display = "none";
-        window.location.href = "/main";
+
+        try {
+            const response = await fetch("/auth/logout", {
+                method: "POST",
+                credentials: "include"  // 쿠키 포함 (리프레시 토큰 삭제)
+            });
+
+            if (response.ok) {
+                sessionStorage.removeItem("token");
+
+                const nameElement = document.getElementById("name");
+                if (nameElement) {
+                    nameElement.textContent = "";
+                    nameElement.style.display = "none";
+                }
+
+                window.location.href = "/main";
+            } else {
+                console.error("로그아웃 실패:", response.status);
+            }
+        } catch (error) {
+            console.error("로그아웃 요청 중 오류 발생:", error);
+        }
     });
 });
 
-function fetchUserUrls() {
-    const token = localStorage.getItem("token")
-    fetch("/api/my-urls", {
-        method: "GET",
-        headers: { "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": token ? `Bearer ${token}` : ""},
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error("URL 목록을 불러올 수 없습니다.");
-            }
-            return response.json();
-        })
-        .then(urls => {
-            urlData = urls.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // 전체 데이터 저장
-            currentPage = 1; // 페이지 초기화
-            renderPage(); // 페이지 렌더링
-        })
-        .catch(error => {
-            console.error("Error:", error);
+async function fetchUserUrls() {
+    try {
+        const response = await fetchWithToken("/api/my-urls", {
+            method: "GET",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
         });
+
+        if (!response.ok) {
+            throw new Error("URL 목록을 불러올 수 없습니다.");
+        }
+
+        const urls = await response.json();
+        urlData = urls.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // 최신순 정렬
+        currentPage = 1; // 페이지 초기화
+        renderPage(); // 페이지 렌더링
+
+    } catch (error) {
+        console.error("Error fetching URLs:", error);
+    }
 }
 
 function renderPage() {
@@ -146,14 +162,9 @@ function renderPage() {
 }
 
 async function deleteUrl(shortUrl) {
-    const token = localStorage.getItem("token");
-
     try {
-        const response = await fetch(`/api/${shortUrl}`, {
-            method: "DELETE",
-            headers: {
-                "Authorization": token ? `Bearer ${token}` : "",
-            }
+        const response = await fetchWithToken(`/api/${shortUrl}`, {
+            method: "DELETE"
         });
 
         if (response.ok) {
@@ -219,4 +230,103 @@ function turnOnLogin() {
     registerButton.style.display = "none";
     logoutButton.style.display = "block";
     urlListSection.style.display = "block";
+}
+
+async function fetchWithToken(url, options = {}) {
+    let token = sessionStorage.getItem("token");
+
+    if (!options.headers) {
+        options.headers = {};
+    }
+    options.headers["Authorization"] = `Bearer ${token}`;
+
+    let response = await fetch(url, options);
+
+    if (response.status === 401) { // 액세스 토큰이 만료되었을 경우
+        console.log("액세스 토큰이 만료됨. 리프레시 요청 중...");
+
+        const refreshResponse = await fetch("/auth/refresh", {
+            method: "POST",
+            credentials: "include" // 리프레시 토큰은 HttpOnly 쿠키에 저장됨
+        });
+
+        if (refreshResponse.ok) {
+            const data = await refreshResponse.json();
+            sessionStorage.setItem("token", data.token); // 새로운 액세스 토큰 저장
+
+            // 원래 요청을 새로운 토큰으로 다시 실행
+            options.headers["Authorization"] = `Bearer ${data.token}`;
+            return fetch(url, options);
+        } else {
+            console.warn("리프레시 토큰도 만료됨. 다시 로그인 필요.");
+            sessionStorage.removeItem("token"); // 만료된 토큰 삭제
+            // window.location.href = "/login"; // 로그인 페이지로 이동
+        }
+    }
+
+    return response;
+}
+
+async function checkAuthStatus() {
+    let token = sessionStorage.getItem("token");
+
+    if (!token) {
+        await refreshToken();
+        token = sessionStorage.getItem("token");
+    }
+
+    if (!token) {
+        console.log("로그인되지 않은 사용자입니다.");
+        turnOffLogin();
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/status", {
+            method: "GET",
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log("인증된 사용자:", data.username);
+            document.querySelector(".username").textContent = `Hello! ${data.username}`;
+            turnOnLogin();
+            fetchUserUrls();
+        } else if (response.status === 401 || response.status === 403) {
+            console.warn("토큰 만료됨. 리프레시 시도...");
+            await refreshToken(); // 🔥 리프레시 요청
+        } else {
+            console.warn("인증 상태 확인 실패:", response.status);
+            turnOffLogin();
+        }
+    } catch (error) {
+        console.error("인증 상태 요청 중 오류 발생:", error);
+        turnOffLogin();
+    }
+}
+
+async function refreshToken() {
+    try {
+        const refreshResponse = await fetch("/auth/refresh", {
+            method: "POST",
+            credentials: "include" // HttpOnly 쿠키에서 리프레시 토큰 요청
+        });
+
+        if (refreshResponse.ok) {
+            const data = await refreshResponse.json();
+            sessionStorage.setItem("token", data.token); // 새 액세스 토큰 저장
+            console.log("리프레시 성공. 새로운 토큰 발급됨.");
+
+            await checkAuthStatus();
+        } else {
+            console.warn("리프레시 토큰도 만료됨. 로그인 필요.");
+            sessionStorage.removeItem("token");
+            // window.location.href = "/login";
+        }
+    } catch (error) {
+        console.error("리프레시 요청 중 오류 발생:", error);
+        sessionStorage.removeItem("token");
+        // window.location.href = "/login";
+    }
 }

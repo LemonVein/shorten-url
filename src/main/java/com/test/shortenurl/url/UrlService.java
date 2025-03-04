@@ -1,21 +1,15 @@
 package com.test.shortenurl.url;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.test.shortenurl.config.JwtTokenProvider;
+import com.test.shortenurl.config.UrlGenerator;
 import com.test.shortenurl.domain.url.Url;
 import com.test.shortenurl.domain.url.UrlRepository;
 import com.test.shortenurl.domain.user.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -26,16 +20,12 @@ public class UrlService {
 
     private final UrlRepository urlRepository;
     private final UserRepository userRepository;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final AuthenticationManager authenticationManager;
-    private final PasswordEncoder passwordEncoder;
     private final RedisService redisService;
     private final AuthService authService;
+    private final UrlGenerator urlGenerator;
 
-    private static final String BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    private static final int BASE = 62;
 
-    public String shortenUrl(String originalUrl, HttpServletRequest request) {
+    public String createShortenUrl(String originalUrl, HttpServletRequest request) {
         String createdBy = authService.getCurrentUsername(request);
         String cacheKey = "shortUrl:" + originalUrl + ":" + createdBy;
 
@@ -48,7 +38,7 @@ public class UrlService {
             return urlRepository.findByOriginalUrlAndCreatedBy(originalUrl, createdBy).get().getShortUrl();
         }
 
-        String shortUrl = generateUniqueShortUrl(originalUrl + createdBy);
+        String shortUrl = urlGenerator.generateUniqueShortUrl(originalUrl + createdBy);
 
         Url urlMapping = new Url();
         urlMapping.setShortUrl(shortUrl);
@@ -56,6 +46,7 @@ public class UrlService {
         urlMapping.setCreatedAt(LocalDateTime.now());
         urlMapping.setDeleted(false);
         urlMapping.setCreatedBy(createdBy);
+
         urlRepository.save(urlMapping);
 
         redisService.saveSingleData(cacheKey, shortUrl);
@@ -104,41 +95,6 @@ public class UrlService {
         else {
             return null;
         }
-    }
-
-    private String generateShortUrl(String originalUrl) {
-        String uniqueData = originalUrl + UUID.randomUUID();
-
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(uniqueData.getBytes(StandardCharsets.UTF_8));
-
-            BigInteger decimal = new BigInteger(1, hash);
-
-            return encodeBase62(decimal).substring(0, 7);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 Algorithm not found", e);
-        }
-    }
-
-    private String encodeBase62(BigInteger number) {
-        StringBuilder sb = new StringBuilder();
-        while (number.compareTo(BigInteger.ZERO) > 0) {
-            sb.append(BASE62.charAt(number.mod(BigInteger.valueOf(BASE)).intValue()));
-            number = number.divide(BigInteger.valueOf(BASE));
-        }
-        return sb.reverse().toString();
-    }
-
-    private String generateUniqueShortUrl(String originalUrl) {
-        int maxAttempts = 5;
-        for (int i = 0; i < maxAttempts; i++) {
-            String shortUrl = generateShortUrl(originalUrl);
-            if (urlRepository.existsByShortUrl(shortUrl).isPresent()) {
-                return shortUrl;
-            }
-        }
-        throw new RuntimeException("Failed to generate a unique short URL after " + maxAttempts + " attempts");
     }
 
     public boolean deleteShortUrl(String shortUrl, HttpServletRequest request) {
