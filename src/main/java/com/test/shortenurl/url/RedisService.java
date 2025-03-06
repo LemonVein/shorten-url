@@ -7,8 +7,10 @@ import com.test.shortenurl.domain.url.Url;
 import lombok.AllArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -34,9 +36,7 @@ public class RedisService {
     }
 
     public String getSingleData(String key) {
-        String value = (String) redisTemplate.opsForValue().get(key);
-
-        return value;
+        return (String) redisTemplate.opsForValue().get(key);
     }
 
     public List<Url> getListData(String key) {
@@ -54,8 +54,7 @@ public class RedisService {
     }
 
     public boolean deleteSingleData(String key) {
-        boolean result = redisTemplate.delete(key);
-        return result;
+        return redisTemplate.delete(key);
     }
 
     public void saveRefreshToken(String key, String value) {

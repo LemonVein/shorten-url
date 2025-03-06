@@ -80,3 +80,46 @@ a {
 a:hover {
     text-decoration: underline;
 }
+
+@media (max-width: 480px) {
+    body {
+        max-width: 90%;
+        padding: 10px;
+    }
+
+    form {
+        padding: 15px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    button {
+        font-size: 14px;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 320px) {
+    h1 {
+        font-size: 20px;
+    }
+
+    form {
+        padding: 10px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+        font-size: 12px;
+        padding: 8px;
+    }
+
+    button {
+        font-size: 12px;
+        padding: 8px;
+    }
+}

@@ -1,7 +1,6 @@
 package com.test.shortenurl.url;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.test.shortenurl.config.JwtAuthenticationFilter;
 import com.test.shortenurl.config.JwtTokenProvider;
 import com.test.shortenurl.domain.url.Url;

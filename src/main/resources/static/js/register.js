@@ -21,8 +21,8 @@ async function register(event) {
 
     if (response.ok) {
         const data = await response.json();
-        alert("registered ok")
-        window.location.href = "/main"; // 로그인 후 메인 페이지 이동
+        alert("registered ok plz try login")
+        window.location.href = "/main";
     } else {
         alert("Invalid username or password.");
     }

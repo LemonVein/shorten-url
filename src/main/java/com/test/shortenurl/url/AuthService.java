@@ -5,6 +5,8 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -21,17 +23,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisService redisService;
-
-    public AuthService(AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider, RedisService redisService) {
-        this.authenticationManager = authenticationManager;
-        this.jwtTokenProvider = jwtTokenProvider;
-        this.redisService = redisService;
-    }
 
     public ResponseEntity<?> tryLogin(String username, String password, HttpServletResponse response) {
         try {
@@ -60,6 +57,20 @@ public class AuthService {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
         }
+    }
+
+    public ResponseEntity<?> tryLogout(String refreshToken, HttpServletResponse response) {
+        ResponseCookie expiredCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .path("/")
+                .maxAge(0)  // 즉시 만료
+                .build();
+
+        response.addHeader("Set-Cookie", expiredCookie.toString());
+
+        return ResponseEntity.ok("Logged out successfully");
     }
 
     public Map<String, Object> checkStatus(HttpServletRequest request) {
@@ -94,23 +105,49 @@ public class AuthService {
         return anonId;
     }
 
+    public ResponseEntity<?> refreshWithToken(String refreshToken) {
+        if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
+
+        String storedRefreshToken = redisService.getRefreshToken("refreshToken:" + username);
+
+        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        // 기존 리프레시 토큰 무효화 (재사용 방지)
+        redisService.deleteSingleData("refreshToken:" + username);
+
+        // 새 리프레시 토큰 발급
+        String newAccessToken = jwtTokenProvider.generateTokenByUsername(username);
+        String newRefreshToken = jwtTokenProvider.generateRefreshTokenByUsername(username);
+
+        // 새 리프레시 토큰을 Redis에 저장
+        redisService.saveRefreshToken("refreshToken:" + username, newRefreshToken);
+
+        // 새 리프레시 토큰을 쿠키에 저장
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", newRefreshToken)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .path("/")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(Map.of("token", newAccessToken));
+    }
+
+
     private String extractTokenFromHeader(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
         return null;
-    }
-
-    private Optional<String> getAnonymousIdFromCookie(HttpServletRequest request) {
-        if (request.getCookies() != null) {
-            for (Cookie cookie : request.getCookies()) {
-                if ("ANON_ID".equals(cookie.getName())) {
-                    return Optional.of(cookie.getValue());
-                }
-            }
-        }
-        return Optional.empty();
     }
 
     public boolean isValidUsername(String username) {

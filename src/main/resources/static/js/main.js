@@ -2,7 +2,9 @@ const loginButton = document.querySelector("#loginButton");
 const logoutButton = document.querySelector("#logoutForm");
 const urlListSection = document.querySelector("#urlListSection");
 const registerButton = document.querySelector("#registerButton");
+const userNameDisplay = document.querySelector('#usernameDisplay');
 
+const mainDomain = "http://localhost:8080/"
 let currentPage = 1;
 const itemsPerPage = 5;
 let urlData = [];
@@ -10,35 +12,10 @@ let urlData = [];
 document.addEventListener("DOMContentLoaded", async () => {
     const resultA = document.querySelector('div.result > a');
     const form = document.querySelector("#urlForm");
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const name = document.querySelector(".username");
 
     await checkAuthStatus();
-
-    // turnOffLogin();
-    // if (token) {
-    //     try {
-    //         const response = await fetchWithToken("/api/status", {
-    //             method: "GET"
-    //         });
-    //
-    //         if (response.ok) {
-    //             const data = await response.json();
-    //
-    //             name.textContent = `Hello! ${data.username}`;
-    //             name.style.display = "block";
-    //
-    //             turnOnLogin();
-    //             fetchUserUrls();
-    //         } else {
-    //             console.warn("🚨 사용자 정보를 가져올 수 없음.");
-    //         }
-    //     } catch (error) {
-    //         console.error("🚨 사용자 정보 요청 중 오류 발생:", error);
-    //     }
-    // } else {
-    //     turnOffLogin();
-    // }
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -48,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         formData.append("originalUrl", originalUrl.value);
 
         try {
-            const token = sessionStorage.getItem("token")
+            const token = localStorage.getItem("token")
 
             const response = await fetch("/api/shorten_url", {
                 method: "POST",
@@ -59,10 +36,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (response.ok) {
                 const shortenCode = await response.text();
-                const shortenedUrl = `http://localhost:8080/${shortenCode}`;
+                const shortenedUrl = mainDomain + `${shortenCode}`;
                 alert(`Shortened URL: ${shortenedUrl}`);
 
-                resultA.href = shortenedUrl;
+                resultA.href = `/${shortenCode}`;
                 resultA.textContent = shortenedUrl;
                 resultA.target = "_blank";
                 originalUrl.value = "";
@@ -88,7 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             if (response.ok) {
-                sessionStorage.removeItem("token");
+                localStorage.removeItem("token");
 
                 const nameElement = document.getElementById("name");
                 if (nameElement) {
@@ -145,7 +122,7 @@ function renderPage() {
     paginatedData.forEach(url => {
         const listItem = document.createElement("li");
         listItem.innerHTML = `<p>original URL : ${url.originalUrl} </p>
-                              <a href="/${url.shortUrl}" target="_blank">localhost:8080/${url.shortUrl}</a>
+                              <a href="/${url.shortUrl}" target="_blank">${mainDomain}${url.shortUrl}</a>
                               <button class="delete-btn" data-shorturl="${url.shortUrl}">Delete</button>
         `;
         urlList.appendChild(listItem);
@@ -172,6 +149,7 @@ async function deleteUrl(shortUrl) {
             fetchUserUrls(); // 삭제 후 목록 다시 불러오기
         } else {
             alert("Failed to delete URL.");
+            fetchUserUrls();
         }
     } catch (error) {
         console.error("Error deleting URL:", error);
@@ -183,7 +161,7 @@ function createPaginationButtons() {
     const pagination = document.getElementById("pagination");
     const totalPages = Math.ceil(urlData.length / itemsPerPage);
 
-    if (totalPages <= 1) return; // 페이지가 하나면 버튼 필요 없음
+    if (totalPages <= 1) return;
 
     // 이전 페이지 버튼
     if (currentPage > 1) {
@@ -218,11 +196,13 @@ function changePage(page) {
     renderPage();
 }
 
+// 원시적인 로그인 버튼 끄고 켜기
 function turnOffLogin() {
     loginButton.style.display = "block";
     registerButton.style.display = "block";
     logoutButton.style.display = "none";
     urlListSection.style.display = "none";
+    userNameDisplay.style.display = "none";
 }
 
 function turnOnLogin() {
@@ -230,10 +210,11 @@ function turnOnLogin() {
     registerButton.style.display = "none";
     logoutButton.style.display = "block";
     urlListSection.style.display = "block";
+    userNameDisplay.style.display = "block";
 }
 
 async function fetchWithToken(url, options = {}) {
-    let token = sessionStorage.getItem("token");
+    let token = localStorage.getItem("token");
 
     if (!options.headers) {
         options.headers = {};
@@ -243,24 +224,23 @@ async function fetchWithToken(url, options = {}) {
     let response = await fetch(url, options);
 
     if (response.status === 401) { // 액세스 토큰이 만료되었을 경우
-        console.log("액세스 토큰이 만료됨. 리프레시 요청 중...");
+        console.log("액세스 토큰이 만료됨. 리프레시 요청");
 
         const refreshResponse = await fetch("/auth/refresh", {
             method: "POST",
-            credentials: "include" // 리프레시 토큰은 HttpOnly 쿠키에 저장됨
+            credentials: "include"
         });
 
         if (refreshResponse.ok) {
             const data = await refreshResponse.json();
-            sessionStorage.setItem("token", data.token); // 새로운 액세스 토큰 저장
+            localStorage.setItem("token", data.token); // 새로운 액세스 토큰 저장
 
             // 원래 요청을 새로운 토큰으로 다시 실행
             options.headers["Authorization"] = `Bearer ${data.token}`;
             return fetch(url, options);
         } else {
             console.warn("리프레시 토큰도 만료됨. 다시 로그인 필요.");
-            sessionStorage.removeItem("token"); // 만료된 토큰 삭제
-            // window.location.href = "/login"; // 로그인 페이지로 이동
+            localStorage.removeItem("token"); // 만료된 토큰 삭제
         }
     }
 
@@ -268,11 +248,11 @@ async function fetchWithToken(url, options = {}) {
 }
 
 async function checkAuthStatus() {
-    let token = sessionStorage.getItem("token");
+    let token = localStorage.getItem("token");
 
     if (!token) {
         await refreshToken();
-        token = sessionStorage.getItem("token");
+        token = localStorage.getItem("token");
     }
 
     if (!token) {
@@ -294,7 +274,7 @@ async function checkAuthStatus() {
             turnOnLogin();
             fetchUserUrls();
         } else if (response.status === 401 || response.status === 403) {
-            console.warn("토큰 만료됨. 리프레시 시도...");
+            console.warn("토큰 만료됨. 리프레시 시도");
             await refreshToken(); // 🔥 리프레시 요청
         } else {
             console.warn("인증 상태 확인 실패:", response.status);
@@ -315,18 +295,16 @@ async function refreshToken() {
 
         if (refreshResponse.ok) {
             const data = await refreshResponse.json();
-            sessionStorage.setItem("token", data.token); // 새 액세스 토큰 저장
+            localStorage.setItem("token", data.token); // 새 액세스 토큰 저장
             console.log("리프레시 성공. 새로운 토큰 발급됨.");
 
             await checkAuthStatus();
         } else {
             console.warn("리프레시 토큰도 만료됨. 로그인 필요.");
-            sessionStorage.removeItem("token");
-            // window.location.href = "/login";
+            localStorage.removeItem("token");
         }
     } catch (error) {
         console.error("리프레시 요청 중 오류 발생:", error);
-        sessionStorage.removeItem("token");
-        // window.location.href = "/login";
+        localStorage.removeItem("token");
     }
 }

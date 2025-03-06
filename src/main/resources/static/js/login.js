@@ -16,7 +16,7 @@ async function login(event) {
 
     if (response.ok) {
         const data = await response.json();
-        sessionStorage.setItem("token", data.token);
+        localStorage.setItem("token", data.token);
         window.location.href = "/main"; // 로그인 후 메인 페이지 이동
     } else {
         alert("Invalid username or password.");

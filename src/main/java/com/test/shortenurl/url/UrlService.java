@@ -8,7 +8,10 @@ import com.test.shortenurl.domain.user.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -24,7 +27,6 @@ public class UrlService {
     private final AuthService authService;
     private final UrlGenerator urlGenerator;
 
-
     public String createShortenUrl(String originalUrl, HttpServletRequest request) {
         String createdBy = authService.getCurrentUsername(request);
         String cacheKey = "shortUrl:" + originalUrl + ":" + createdBy;
@@ -34,8 +36,10 @@ public class UrlService {
             return cachedShortUrl;  // 캐시된 URL이 있으면 바로 반환
         }
 
-        if (urlRepository.findByOriginalUrlAndCreatedBy(originalUrl, createdBy).isPresent()) {
-            return urlRepository.findByOriginalUrlAndCreatedBy(originalUrl, createdBy).get().getShortUrl();
+        Optional<Url> urlOptional = urlRepository.findByOriginalUrlAndCreatedByAndDeletedFalse(originalUrl, createdBy);
+
+        if (urlOptional.isPresent()) {
+            return urlOptional.get().getShortUrl();
         }
 
         String shortUrl = urlGenerator.generateUniqueShortUrl(originalUrl + createdBy);
@@ -76,7 +80,7 @@ public class UrlService {
 
     public String getOriginalUrl(String shortUrl) {
 
-        String key = shortUrl + ":" + shortUrl;
+        String key = "shortUrl:" + shortUrl;
 
         if (redisService.getSingleData(key) != null) {
             return redisService.getSingleData(key);
@@ -107,12 +111,39 @@ public class UrlService {
             urlRepository.save(url);
 
             String urlsUsernameKey = "user:urls:" + username;
-            boolean result = redisService.deleteSingleData(urlsUsernameKey);
+            String urlCacheKey = "shortUrl:" + url.getOriginalUrl() + ":" + username;
+
+            redisService.deleteSingleData(urlsUsernameKey);
+            redisService.deleteSingleData(urlCacheKey);
 
             return true;
         }
         else {
             return false;
+        }
+    }
+
+    public boolean isOriginalUrlValid(String originalUrl) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<String> responseEntity = restTemplate.getForEntity(originalUrl, String.class);
+
+            return responseEntity.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Scheduled(cron = "0 0 0 * * *")
+    public void deleteOldAnonymousUrls() {
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+
+        List<Url> oldAnonymousUrls = urlRepository.findByCreatedByStartingWithAndCreatedAtBefore("ANON_", sevenDaysAgo);
+
+        if (!oldAnonymousUrls.isEmpty()) {
+            oldAnonymousUrls.forEach(url -> redisService.deleteSingleData("shortUrl:" + url.getOriginalUrl() + ":" + url.getCreatedBy()));
+            urlRepository.deleteAll(oldAnonymousUrls);
+            System.out.println(oldAnonymousUrls.size() + "개의 익명 URL이 삭제되었습니다.");
         }
     }
 
