@@ -1,13 +1,16 @@
 package com.test.shortenurl.url;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.test.shortenurl.config.UrlGenerator;
+import com.test.shortenurl.common.RedisService;
+import com.test.shortenurl.domain.url.UrlGenerator;
 import com.test.shortenurl.domain.url.Url;
 import com.test.shortenurl.domain.url.UrlRepository;
 import com.test.shortenurl.domain.user.UserRepository;
+import com.test.shortenurl.user.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -19,7 +22,11 @@ import java.util.*;
 @Service
 @Getter
 @RequiredArgsConstructor
+@Slf4j
 public class UrlService {
+
+    private static final String SINGLE_URL_KEY = "shortUrl:";
+    private static final String MULTIPLE_URL_KEY = "user:urls:"; // 사용자 이름과 함께 사용
 
     private final UrlRepository urlRepository;
     private final UserRepository userRepository;
@@ -33,7 +40,7 @@ public class UrlService {
 
         String cachedShortUrl = redisService.getSingleData(cacheKey);
         if (cachedShortUrl != null) {
-            return cachedShortUrl;  // 캐시된 URL이 있으면 바로 반환
+            return cachedShortUrl;
         }
 
         Optional<Url> urlOptional = urlRepository.findByOriginalUrlAndCreatedByAndDeletedFalse(originalUrl, createdBy);
@@ -55,7 +62,7 @@ public class UrlService {
 
         redisService.saveSingleData(cacheKey, shortUrl);
 
-        String urlsUsernameKey = "user:urls:" + createdBy;
+        String urlsUsernameKey = MULTIPLE_URL_KEY + createdBy;
 
         redisService.deleteSingleData(urlsUsernameKey);
 
@@ -65,7 +72,7 @@ public class UrlService {
     public List<Url> getUrls(HttpServletRequest request) throws JsonProcessingException {
         String username = authService.getCurrentUsername(request);
 
-        String urlsUsernameKey = "user:urls:" + username;
+        String urlsUsernameKey = MULTIPLE_URL_KEY + username;
 
         List<Url> cachedShortUrls = redisService.getListData(urlsUsernameKey);
         if (cachedShortUrls != null) {
@@ -80,7 +87,7 @@ public class UrlService {
 
     public String getOriginalUrl(String shortUrl) {
 
-        String key = "shortUrl:" + shortUrl;
+        String key = SINGLE_URL_KEY + shortUrl;
 
         if (redisService.getSingleData(key) != null) {
             return redisService.getSingleData(key);
@@ -110,7 +117,7 @@ public class UrlService {
             url.setDeleted(true);
             urlRepository.save(url);
 
-            String urlsUsernameKey = "user:urls:" + username;
+            String urlsUsernameKey = MULTIPLE_URL_KEY + username;
             String urlCacheKey = "shortUrl:" + url.getOriginalUrl() + ":" + username;
 
             redisService.deleteSingleData(urlsUsernameKey);
@@ -143,7 +150,7 @@ public class UrlService {
         if (!oldAnonymousUrls.isEmpty()) {
             oldAnonymousUrls.forEach(url -> redisService.deleteSingleData("shortUrl:" + url.getOriginalUrl() + ":" + url.getCreatedBy()));
             urlRepository.deleteAll(oldAnonymousUrls);
-            System.out.println(oldAnonymousUrls.size() + "개의 익명 URL이 삭제되었습니다.");
+            log.debug(oldAnonymousUrls.size() + "개의 익명 URL이 삭제되었습니다.");
         }
     }
 

@@ -1,12 +1,9 @@
-package com.test.shortenurl.url;
+package com.test.shortenurl.user;
 
-import com.test.shortenurl.config.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @AllArgsConstructor

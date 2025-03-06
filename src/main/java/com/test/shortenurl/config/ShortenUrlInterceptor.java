@@ -4,6 +4,7 @@ import com.test.shortenurl.url.UrlService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -11,6 +12,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ShortenUrlInterceptor implements HandlerInterceptor {
 
     private final UrlService urlService;
@@ -26,7 +28,7 @@ public class ShortenUrlInterceptor implements HandlerInterceptor {
             return true; // API, 인증 관련 요청은 건너뛴다.
         }
 
-        System.out.println("Checking URL: " + path);
+        log.debug("Checking URL: " + path);
 
         // 기존 페이지들과 충돌 방지 (이외의 값이면 단축 URL인지 확인)
         if (!List.of("main", "register", "login", "error", "null").contains(path)) {

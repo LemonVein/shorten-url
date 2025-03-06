@@ -1,7 +1,7 @@
-package com.test.shortenurl.url;
+package com.test.shortenurl.user;
 
+import com.test.shortenurl.common.RedisService;
 import com.test.shortenurl.config.JwtTokenProvider;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -19,7 +19,6 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service

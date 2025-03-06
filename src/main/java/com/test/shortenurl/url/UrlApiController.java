@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.test.shortenurl.config.JwtAuthenticationFilter;
 import com.test.shortenurl.config.JwtTokenProvider;
 import com.test.shortenurl.domain.url.Url;
+import com.test.shortenurl.user.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;

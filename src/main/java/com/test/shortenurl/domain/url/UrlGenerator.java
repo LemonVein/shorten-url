@@ -1,6 +1,6 @@
-package com.test.shortenurl.config;
+package com.test.shortenurl.domain.url;
 
-import com.test.shortenurl.domain.url.UrlRepository;
+import com.test.shortenurl.common.ShortenUrlGenerationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -28,7 +28,7 @@ public class UrlGenerator {
                 return shortUrl;
             }
         }
-        throw new RuntimeException("Failed to generate a unique short URL after " + maxAttempts + " attempts");
+        throw new ShortenUrlGenerationException("Failed to generate a unique short URL after " + maxAttempts + " attempts");
     }
 
     private String generateShortUrl(String originalUrl) {

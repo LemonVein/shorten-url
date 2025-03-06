@@ -1,4 +1,4 @@
-package com.test.shortenurl.url;
+package com.test.shortenurl.user;
 
 import com.test.shortenurl.domain.user.User;
 import com.test.shortenurl.domain.user.UserRepository;
