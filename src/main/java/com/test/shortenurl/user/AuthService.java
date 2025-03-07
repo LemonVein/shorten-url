@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -29,47 +30,32 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisService redisService;
 
-    public ResponseEntity<?> tryLogin(String username, String password, HttpServletResponse response) {
-        try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(username, password)
-            );
+    public Map<String, String> tryLogin(String username, String password, HttpServletResponse response) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(username, password)
+        );
 
+        String token = jwtTokenProvider.generateToken(authentication);
 
-            String token = jwtTokenProvider.generateToken(authentication);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
-            String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
+        redisService.saveRefreshToken("refreshToken:" + username, refreshToken);
 
-            redisService.saveRefreshToken("refreshToken:" + username, refreshToken);
+        return Map.of("token", token, "refreshToken", refreshToken);
 
-            ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
-                    .httpOnly(true)
-                    .secure(true)
-                    .sameSite("Strict")
-                    .path("/")
-                    .maxAge(Duration.ofDays(1))
-                    .build();
-
-            response.addHeader("Set-Cookie", cookie.toString());
-
-            return ResponseEntity.ok(Map.of("token", token));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
-        }
     }
 
-    public ResponseEntity<?> tryLogout(String refreshToken, HttpServletResponse response) {
-        ResponseCookie expiredCookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
-                .path("/")
-                .maxAge(0)  // 즉시 만료
-                .build();
+    public boolean tryLogout(String refreshToken, HttpServletResponse response) {
+        try {
+            String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
 
-        response.addHeader("Set-Cookie", expiredCookie.toString());
+            redisService.deleteSingleData("refreshToken:" + username);
 
-        return ResponseEntity.ok("Logged out successfully");
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+
     }
 
     public Map<String, Object> checkStatus(HttpServletRequest request) {
@@ -104,40 +90,29 @@ public class AuthService {
         return anonId;
     }
 
-    public ResponseEntity<?> refreshWithToken(String refreshToken) {
+    public Optional<Map<String, String>> refreshWithToken(String refreshToken) {
         if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return Optional.empty();
         }
 
         String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
-
         String storedRefreshToken = redisService.getRefreshToken("refreshToken:" + username);
 
         if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return Optional.empty();
         }
 
-        // 기존 리프레시 토큰 무효화 (재사용 방지)
+        // 기존 리프레시 토큰 삭제 (재사용 방지)
         redisService.deleteSingleData("refreshToken:" + username);
 
-        // 새 리프레시 토큰 발급
+        // 새 액세스 토큰 & 새 리프레시 토큰 발급
         String newAccessToken = jwtTokenProvider.generateTokenByUsername(username);
         String newRefreshToken = jwtTokenProvider.generateRefreshTokenByUsername(username);
 
-        // 새 리프레시 토큰을 Redis에 저장
+        // 새 리프레시 토큰 저장
         redisService.saveRefreshToken("refreshToken:" + username, newRefreshToken);
 
-        // 새 리프레시 토큰을 쿠키에 저장
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", newRefreshToken)
-                .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
-                .path("/")
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(Map.of("token", newAccessToken));
+        return Optional.of(Map.of("token", newAccessToken, "refreshToken", newRefreshToken));
     }
 
 
