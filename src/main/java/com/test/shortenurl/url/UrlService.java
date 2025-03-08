@@ -8,6 +8,7 @@ import com.test.shortenurl.domain.url.UrlRepository;
 import com.test.shortenurl.domain.user.UserRepository;
 import com.test.shortenurl.user.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,8 +35,8 @@ public class UrlService {
     private final AuthService authService;
     private final UrlGenerator urlGenerator;
 
-    public String createShortenUrl(String originalUrl, HttpServletRequest request) {
-        String createdBy = authService.getCurrentUsername(request);
+    public String createShortenUrl(String originalUrl, HttpServletRequest request, HttpServletResponse response) {
+        String createdBy = authService.getCurrentUsername(request, response);
         String cacheKey = "shortUrl:" + originalUrl + ":" + createdBy;
 
         String cachedShortUrl = redisService.getSingleData(cacheKey);
@@ -69,8 +70,8 @@ public class UrlService {
         return shortUrl;
     }
 
-    public List<Url> getUrls(HttpServletRequest request) throws JsonProcessingException {
-        String username = authService.getCurrentUsername(request);
+    public List<Url> getUrls(HttpServletRequest request, HttpServletResponse response) throws JsonProcessingException {
+        String username = authService.getCurrentUsername(request, response);
 
         String urlsUsernameKey = MULTIPLE_URL_KEY + username;
 
@@ -108,8 +109,8 @@ public class UrlService {
         }
     }
 
-    public boolean deleteShortUrl(String shortUrl, HttpServletRequest request) {
-        String username = authService.getCurrentUsername(request);
+    public boolean deleteShortUrl(String shortUrl, HttpServletRequest request, HttpServletResponse response) {
+        String username = authService.getCurrentUsername(request, response);
         Optional<Url> original = urlRepository.findByShortUrlAndDeletedFalse(shortUrl);
 
         if (original.isPresent()) {

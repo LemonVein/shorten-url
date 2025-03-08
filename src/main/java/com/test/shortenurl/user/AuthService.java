@@ -2,6 +2,7 @@ package com.test.shortenurl.user;
 
 import com.test.shortenurl.common.RedisService;
 import com.test.shortenurl.config.JwtTokenProvider;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -58,9 +59,9 @@ public class AuthService {
 
     }
 
-    public Map<String, Object> checkStatus(HttpServletRequest request) {
+    public Map<String, Object> checkStatus(HttpServletRequest request, HttpServletResponse servletResponse) {
         Map<String, Object> response = new HashMap<>();
-        String username = getCurrentUsername(request);
+        String username = getCurrentUsername(request, servletResponse);
 
         boolean isAuthenticated = username != null && isValidUsername(username);
 
@@ -73,19 +74,31 @@ public class AuthService {
         return response;
     }
 
-    public String getCurrentUsername(HttpServletRequest request) {
+    public String getCurrentUsername(HttpServletRequest request, HttpServletResponse response) {
         String token = extractTokenFromHeader(request);
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             return jwtTokenProvider.getUsernameFromToken(token);
         }
 
-        HttpSession session = request.getSession();
-        String anonId = (String) session.getAttribute("ANON_ID");
-
-        if (anonId == null) {
-            anonId = "ANON_" + UUID.randomUUID();
-            session.setAttribute("ANON_ID", anonId);
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("ANON_ID".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
         }
+        String anonId = "ANON_" + UUID.randomUUID();
+
+        ResponseCookie cookie = ResponseCookie.from("ANON_ID", anonId)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .path("/")
+                .maxAge(Duration.ofDays(1))
+                .build();
+
+        response.addHeader("Set-Cookie", cookie.toString());
 
         return anonId;
     }

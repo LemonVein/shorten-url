@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @AllArgsConstructor
@@ -69,7 +68,7 @@ public class AuthController {
         } catch (DuplicateUserException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Registration failed"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Register failed"));
         }
     }
 
