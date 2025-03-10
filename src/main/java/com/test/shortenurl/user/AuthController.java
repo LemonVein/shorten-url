@@ -1,6 +1,5 @@
 package com.test.shortenurl.user;
 
-import com.test.shortenurl.common.DuplicateUserException;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -24,21 +23,19 @@ public class AuthController {
         Map<String, String> tokens = authService.tryLogin(username, password, response);
         String token = tokens.get("token");
         String refreshToken = tokens.get("refreshToken");
-        try {
-            ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
-                    .httpOnly(true)
-                    .secure(true)
-                    .sameSite("Strict")
-                    .path("/")
-                    .maxAge(Duration.ofDays(1))
-                    .build();
 
-            response.addHeader("Set-Cookie", cookie.toString());
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .path("/")
+                .maxAge(Duration.ofDays(1))
+                .build();
 
-            return ResponseEntity.ok(Map.of("token", token));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
-        }
+        response.addHeader("Set-Cookie", cookie.toString());
+
+        return ResponseEntity.ok(Map.of("token", token));
+
     }
 
     @PostMapping("/logout")
@@ -62,14 +59,8 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestParam String username, String password) {
-        try {
-            userService.registerUser(username, password);
-            return ResponseEntity.ok(Map.of("message", "Registered successfully"));
-        } catch (DuplicateUserException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Register failed"));
-        }
+        userService.registerUser(username, password);
+        return ResponseEntity.ok(Map.of("message", "Registered successfully"));
     }
 
     @PostMapping("/refresh")
