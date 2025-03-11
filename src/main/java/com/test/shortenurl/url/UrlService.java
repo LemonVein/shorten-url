@@ -49,17 +49,19 @@ public class UrlService {
         if (urlOptional.isPresent()) {
             return urlOptional.get().getShortUrl();
         }
+        Url newUrl = new Url();
+        newUrl.setOriginalUrl(originalUrl);
+        newUrl.setCreatedAt(LocalDateTime.now());
+        newUrl.setDeleted(false);
+        newUrl.setCreatedBy(createdBy);
 
-        String shortUrl = urlGenerator.generateUniqueShortUrl(originalUrl + createdBy);
+        newUrl = urlRepository.save(newUrl); // 시퀸스를 받기위해 먼저 저장
 
-        Url urlMapping = new Url();
-        urlMapping.setShortUrl(shortUrl);
-        urlMapping.setOriginalUrl(originalUrl);
-        urlMapping.setCreatedAt(LocalDateTime.now());
-        urlMapping.setDeleted(false);
-        urlMapping.setCreatedBy(createdBy);
+        String shortUrl = urlGenerator.generateUniqueShortUrl(originalUrl + createdBy, newUrl.getId());
 
-        urlRepository.save(urlMapping);
+        newUrl.setShortUrl(shortUrl); // 짧아진 코드 저장
+
+        urlRepository.save(newUrl);
 
         redisService.saveSingleData(cacheKey, shortUrl);
 
@@ -143,7 +145,7 @@ public class UrlService {
     }
 
     @Scheduled(cron = "0 0 0 * * *")
-    public void deleteOldAnonymousUrls() {
+    public void deleteOldAnonymousUrls() { // 7일 지난 익명 사용자들의 url 삭제
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
 
         List<Url> oldAnonymousUrls = urlRepository.findByCreatedByStartingWithAndCreatedAtBefore("ANON_", sevenDaysAgo);
@@ -152,6 +154,19 @@ public class UrlService {
             oldAnonymousUrls.forEach(url -> redisService.deleteSingleData("shortUrl:" + url.getOriginalUrl() + ":" + url.getCreatedBy()));
             urlRepository.deleteAll(oldAnonymousUrls);
             log.debug(oldAnonymousUrls.size() + "개의 익명 URL이 삭제되었습니다.");
+        }
+    }
+
+    @Scheduled(cron = "0 0 0 * * *")
+    public void deleteOldUserUrls() { // 30일이 지난 갱신 안된 url들 삭제
+        LocalDateTime daysAgo = LocalDateTime.now().minusDays(30);
+
+        List<Url> oldUrls = urlRepository.findByCreatedAtBefore(daysAgo);
+
+        if (!oldUrls.isEmpty()) {
+            oldUrls.forEach(url -> redisService.deleteSingleData("shortUrl:" + url.getOriginalUrl() + ":" + url.getCreatedBy()));
+            urlRepository.deleteAll(oldUrls);
+            log.debug(oldUrls.size() + "개의 익명 URL이 삭제되었습니다.");
         }
     }
 

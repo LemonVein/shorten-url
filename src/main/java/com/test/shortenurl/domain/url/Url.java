@@ -12,13 +12,13 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @ToString
-@Table(name = "mapping_table")
+@Table(name = "url")
 public class Url {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "shorten_url", nullable = false, unique = true)
+    @Column(name = "shorten_url", unique = true)
     private String shortUrl;
 
     @Column(name = "original_url", columnDefinition = "LONGTEXT", nullable = false)

@@ -16,6 +16,7 @@ public interface UrlRepository extends JpaRepository<Url, Long> {
     Optional<Url> existsByShortUrl(String shortenUrl);
 
     List<Url> findByCreatedByStartingWithAndCreatedAtBefore(String createdBy, LocalDateTime createdAt);
+    List<Url> findByCreatedAtBefore(LocalDateTime createdAt);
     List<Url> findByCreatedBy(String username);
     List<Url> findByCreatedByAndDeletedFalse(String username);
 }

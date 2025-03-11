@@ -6,8 +6,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 @Component
@@ -20,10 +18,10 @@ public class UrlGenerator {
     private static final int BASE = 62;
 
 
-    public String generateUniqueShortUrl(String originalUrl) {
+    public String generateUniqueShortUrl(String originalUrl, Long id) {
         int maxAttempts = 5;
         for (int i = 0; i < maxAttempts; i++) {
-            String shortUrl = generateShortUrl(originalUrl);
+            String shortUrl = generateShortUrl(originalUrl, id);
             if (urlRepository.existsByShortUrl(shortUrl).isPresent()) {
                 return shortUrl;
             }
@@ -31,22 +29,15 @@ public class UrlGenerator {
         throw new ShortenUrlGenerationException("Failed to generate a unique short URL after " + maxAttempts + " attempts");
     }
 
-    private String generateShortUrl(String originalUrl) {
-        String uniqueData = originalUrl + UUID.randomUUID();
+    private String generateShortUrl(String originalUrl, Long id) {
+        String uniqueData = originalUrl + id;
 
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(uniqueData.getBytes(StandardCharsets.UTF_8));
-
-            BigInteger decimal = new BigInteger(1, hash);
-
-            return encodeBase62(decimal).substring(0, 7);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 Algorithm not found", e);
-        }
+        return encodeBase62(uniqueData).substring(0, 7);
     }
 
-    private String encodeBase62(BigInteger number) {
+    private String encodeBase62(String input) {
+        BigInteger number = new BigInteger(1, input.getBytes(StandardCharsets.UTF_8));
+
         StringBuilder sb = new StringBuilder();
         while (number.compareTo(BigInteger.ZERO) > 0) {
             sb.append(BASE62.charAt(number.mod(BigInteger.valueOf(BASE)).intValue()));
