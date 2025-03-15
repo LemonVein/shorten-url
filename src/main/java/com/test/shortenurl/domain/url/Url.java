@@ -1,5 +1,7 @@
 package com.test.shortenurl.domain.url;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.test.shortenurl.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,4 +33,9 @@ public class Url {
 
     @Column(name = "created_by")
     private String createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "id",nullable = true)
+    @JsonIgnore
+    private User user;
 }

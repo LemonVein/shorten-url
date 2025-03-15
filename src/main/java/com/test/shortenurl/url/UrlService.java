@@ -5,6 +5,7 @@ import com.test.shortenurl.common.RedisService;
 import com.test.shortenurl.domain.url.UrlGenerator;
 import com.test.shortenurl.domain.url.Url;
 import com.test.shortenurl.domain.url.UrlRepository;
+import com.test.shortenurl.domain.user.User;
 import com.test.shortenurl.domain.user.UserRepository;
 import com.test.shortenurl.user.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,11 +13,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -28,12 +32,14 @@ public class UrlService {
 
     private static final String SINGLE_URL_KEY = "shortUrl:";
     private static final String MULTIPLE_URL_KEY = "user:urls:"; // 사용자 이름과 함께 사용
+    private static final int MAX_RETRY_COUNT = 3;
 
     private final UrlRepository urlRepository;
     private final UserRepository userRepository;
     private final RedisService redisService;
     private final AuthService authService;
     private final UrlGenerator urlGenerator;
+    private final RestTemplate restTemplate;
 
     public String createShortenUrl(String originalUrl, HttpServletRequest request, HttpServletResponse response) {
         String createdBy = authService.getCurrentUsername(request, response);
@@ -49,11 +55,16 @@ public class UrlService {
         if (urlOptional.isPresent()) {
             return urlOptional.get().getShortUrl();
         }
+
+        User user = userRepository.findByUserName(createdBy)
+                    .orElse(null);
+
         Url newUrl = new Url();
         newUrl.setOriginalUrl(originalUrl);
         newUrl.setCreatedAt(LocalDateTime.now());
         newUrl.setDeleted(false);
         newUrl.setCreatedBy(createdBy);
+        newUrl.setUser(user);
 
         newUrl = urlRepository.save(newUrl); // 시퀸스를 받기위해 먼저 저장
 
@@ -135,13 +146,41 @@ public class UrlService {
 
     public boolean isOriginalUrlValid(String originalUrl) {
         try {
-            RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<String> responseEntity = restTemplate.getForEntity(originalUrl, String.class);
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
 
-            return responseEntity.getStatusCode().is2xxSuccessful();
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            // 1. HEAD 요청 시도
+            ResponseEntity<Void> response = restTemplate.exchange(originalUrl, HttpMethod.HEAD, entity, Void.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                return true;
+            }
+
+        } catch (HttpClientErrorException e) {
+            // 2. 406 Not Acceptable 발생 시 Accept 헤더 추가 후 GET 요청으로 재시도
+            if (e.getStatusCode() == HttpStatus.NOT_ACCEPTABLE) {
+                try {
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0");
+                    headers.set(HttpHeaders.ACCEPT, "*/*"); // 모든 응답 허용
+
+                    HttpEntity<String> entity = new HttpEntity<>(headers);
+                    ResponseEntity<Void> response = restTemplate.exchange(originalUrl, HttpMethod.GET, entity, Void.class);
+
+                    return response.getStatusCode().is2xxSuccessful();
+                } catch (Exception ex) {
+                    return false;
+                }
+            }
+        } catch (ResourceAccessException e) {
+            return false;
         } catch (Exception e) {
             return false;
         }
+
+        return false;
     }
 
     @Scheduled(cron = "0 0 0 * * *")

@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -63,9 +64,18 @@ public class UrlApiController {
         boolean result = urlService.deleteShortUrl(shortenCode, request, response);
         if (result) {
             return ResponseEntity.noContent().build();
-        }
-        else {
+        } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/state")
+    public ResponseEntity<?> getState(@RequestParam String originalUrl, HttpServletRequest request, HttpServletResponse response) {
+        boolean result = urlService.isOriginalUrlValid(originalUrl);
+        if (result) {
+            return ResponseEntity.ok(Collections.singletonMap("isValid", true));
+        } else {
+            return ResponseEntity.ok(Collections.singletonMap("isValid", false));
         }
     }
 }

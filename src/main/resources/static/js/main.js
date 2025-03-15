@@ -123,6 +123,8 @@ function renderPage() {
         const listItem = document.createElement("li");
         listItem.innerHTML = `<p>original URL : ${url.originalUrl} </p>
                               <a href="/${url.shortUrl}" target="_blank">${mainDomain}${url.shortUrl}</a>
+                              <span class="url-status" data-url="${url.originalUrl}">⏳</span>
+                              <button class="check-url-btn" data-url="${url.originalUrl}">Check</button>
                               <button class="delete-btn" data-shorturl="${url.shortUrl}">Delete</button>
         `;
         urlList.appendChild(listItem);
@@ -134,6 +136,17 @@ function renderPage() {
             await deleteUrl(shortUrl);
         });
     });
+
+    document.querySelectorAll(".check-url-btn").forEach(button => {
+        button.addEventListener("click", async (event) => {
+            const originalUrl = event.target.getAttribute("data-url");
+            await checkSingleUrl(originalUrl);
+        });
+    });
+
+    if (currentPage === 1) {
+        checkOriginalUrls();
+    }
 
     createPaginationButtons();
 }
@@ -221,6 +234,9 @@ async function fetchWithToken(url, options = {}) {
     }
     options.headers["Authorization"] = `Bearer ${token}`;
 
+    console.log("Request URL:", url);
+    console.log("Request Options:", options);
+
     let response = await fetch(url, options);
 
     if (response.status === 401) { // 액세스 토큰이 만료되었을 경우
@@ -306,5 +322,39 @@ async function refreshToken() {
     } catch (error) {
         console.error("리프레시 요청 중 오류 발생:", error);
         localStorage.removeItem("token");
+    }
+}
+
+async function checkOriginalUrls() {
+    document.querySelectorAll(".url-status").forEach(async (statusSpan) => {
+        const originalUrl = statusSpan.getAttribute("data-url");
+        const isValid = await checkUrlValidity(originalUrl);
+        statusSpan.textContent = isValid ? "✅" : "❌";
+    });
+}
+
+async function checkSingleUrl(originalUrl) {
+    const isValid = await checkUrlValidity(originalUrl);
+    const statusSpan = document.querySelector(`.url-status[data-url="${originalUrl}"]`);
+    if (statusSpan) {
+        statusSpan.textContent = isValid ? "✅" : "❌";
+    }
+}
+
+async function checkUrlValidity(originalUrl) {
+    try {
+        const response = await fetchWithToken(`/api/state?originalUrl=${encodeURIComponent(originalUrl)}`, {
+            method: "GET"
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            return data.isValid;  // 백엔드에서 { "isValid": true } 또는 { "isValid": false } 반환
+        } else {
+            return false;
+        }
+    } catch (error) {
+        console.error("URL 유효성 검사 중 오류 발생:", error);
+        return false;
     }
 }
