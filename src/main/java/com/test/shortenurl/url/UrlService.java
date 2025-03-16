@@ -8,17 +8,21 @@ import com.test.shortenurl.domain.url.UrlRepository;
 import com.test.shortenurl.domain.user.User;
 import com.test.shortenurl.domain.user.UserRepository;
 import com.test.shortenurl.user.AuthService;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.net.URI;
 import java.time.LocalDateTime;
@@ -39,7 +43,18 @@ public class UrlService {
     private final RedisService redisService;
     private final AuthService authService;
     private final UrlGenerator urlGenerator;
-    private final RestTemplate restTemplate;
+    private final WebClient.Builder webClientBuilder;
+    private WebClient webClient;
+
+    @PostConstruct
+    public void init() {
+        this.webClient = webClientBuilder
+                .defaultHeader(HttpHeaders.USER_AGENT,
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                                "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                                "Chrome/122.0.0.0 Safari/537.36")
+                .build();
+    }
 
     public String createShortenUrl(String originalUrl, HttpServletRequest request, HttpServletResponse response) {
         String createdBy = authService.getCurrentUsername(request, response);
@@ -146,30 +161,29 @@ public class UrlService {
 
     public boolean isOriginalUrlValid(String originalUrl) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+            // HEAD 요청 시도
+            webClient
+                    .head()
+                    .uri(originalUrl)
+                    .header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
 
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
-            // 1. HEAD 요청 시도
-            ResponseEntity<Void> response = restTemplate.exchange(originalUrl, HttpMethod.HEAD, entity, Void.class);
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                return true;
-            }
-
-        } catch (HttpClientErrorException e) {
-            // 2. 406 Not Acceptable 발생 시 Accept 헤더 추가 후 GET 요청으로 재시도
+            return true;  // HEAD 요청이 성공하면 true 반환
+        } catch (WebClientResponseException e) {
             if (e.getStatusCode() == HttpStatus.NOT_ACCEPTABLE) {
                 try {
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
-                    headers.set(HttpHeaders.ACCEPT, "*/*");
+                    webClient
+                            .get()
+                            .uri(originalUrl)
+                            .header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+                            .header(HttpHeaders.ACCEPT, "*/*")
+                            .retrieve()
+                            .toBodilessEntity()
+                            .block();
 
-                    HttpEntity<String> entity = new HttpEntity<>(headers);
-                    ResponseEntity<Void> response = restTemplate.exchange(originalUrl, HttpMethod.GET, entity, Void.class);
-
-                    return response.getStatusCode().is2xxSuccessful();
+                    return true; // GET 요청이 성공하면 true 반환
                 } catch (Exception ex) {
                     return false;
                 }
@@ -177,7 +191,6 @@ public class UrlService {
         } catch (Exception e) {
             return false;
         }
-
         return false;
     }
 
