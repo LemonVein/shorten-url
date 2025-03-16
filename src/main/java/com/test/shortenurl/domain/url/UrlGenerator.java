@@ -24,8 +24,8 @@ public class UrlGenerator {
 
     private static final String BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final int BASE = 62;
-    private static final List<Integer> OFFSET = List.of(1, 2, 3);
-    private static final SecureRandom RANDOM = new SecureRandom();
+    // private static final List<Integer> OFFSET = List.of(1, 2, 3, 4, 5);
+    // private static final SecureRandom RANDOM = new SecureRandom();
 
 
     public String generateUniqueShortUrl(String originalUrl, Long id) {

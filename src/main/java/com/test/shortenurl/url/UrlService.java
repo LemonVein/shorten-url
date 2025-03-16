@@ -163,8 +163,8 @@ public class UrlService {
             if (e.getStatusCode() == HttpStatus.NOT_ACCEPTABLE) {
                 try {
                     HttpHeaders headers = new HttpHeaders();
-                    headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0");
-                    headers.set(HttpHeaders.ACCEPT, "*/*"); // 모든 응답 허용
+                    headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+                    headers.set(HttpHeaders.ACCEPT, "*/*");
 
                     HttpEntity<String> entity = new HttpEntity<>(headers);
                     ResponseEntity<Void> response = restTemplate.exchange(originalUrl, HttpMethod.GET, entity, Void.class);
@@ -174,8 +174,6 @@ public class UrlService {
                     return false;
                 }
             }
-        } catch (ResourceAccessException e) {
-            return false;
         } catch (Exception e) {
             return false;
         }

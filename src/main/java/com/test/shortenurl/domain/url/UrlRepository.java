@@ -9,14 +9,11 @@ import java.util.Optional;
 
 @Repository
 public interface UrlRepository extends JpaRepository<Url, Long> {
-    Optional<Url> findByShortUrl(String shortUrl);
     Optional<Url> findByShortUrlAndDeletedFalse(String shortUrl);
-    Optional<Url> findByOriginalUrlAndCreatedBy(String originalUrl, String createdBy);
     Optional<Url> findByOriginalUrlAndCreatedByAndDeletedFalse(String originalUrl, String createdBy);
     Optional<Url> existsByShortUrl(String shortenUrl);
 
     List<Url> findByCreatedByStartingWithAndCreatedAtBefore(String createdBy, LocalDateTime createdAt);
     List<Url> findByCreatedAtBefore(LocalDateTime createdAt);
-    List<Url> findByCreatedBy(String username);
     List<Url> findByCreatedByAndDeletedFalse(String username);
 }
