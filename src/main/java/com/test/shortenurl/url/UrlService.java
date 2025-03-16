@@ -76,11 +76,11 @@ public class UrlService {
         newUrl.setCreatedBy(createdBy);
         newUrl.setUser(user);
 
-        newUrl = urlRepository.save(newUrl); // 시퀸스를 받기위해 먼저 저장
+        newUrl = urlRepository.save(newUrl);
 
-        String shortUrl = urlGenerator.generateUniqueShortUrl(originalUrl + createdBy, newUrl.getId());
+        String shortUrl = urlGenerator.generateUniqueShortUrl(newUrl.getId());
 
-        newUrl.setShortUrl(shortUrl); // 짧아진 코드 저장
+        newUrl.setShortUrl(shortUrl);
 
         urlRepository.save(newUrl);
 
