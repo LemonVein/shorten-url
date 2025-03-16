@@ -1,4 +1,4 @@
-package com.test.shortenurl.common;
+package com.test.shortenurl.exception;
 
 public class InvalidRefreshTokenException extends RuntimeException {
     public InvalidRefreshTokenException(String message) {

@@ -1,17 +1,10 @@
 package com.test.shortenurl.domain.url;
 
-import com.test.shortenurl.common.ShortenUrlGenerationException;
+import com.test.shortenurl.exception.ShortenUrlGenerationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor

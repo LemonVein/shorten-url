@@ -1,7 +1,7 @@
 package com.test.shortenurl.url;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.test.shortenurl.common.RedisService;
+import com.test.shortenurl.domain.common.RedisService;
 import com.test.shortenurl.domain.url.UrlGenerator;
 import com.test.shortenurl.domain.url.Url;
 import com.test.shortenurl.domain.url.UrlRepository;
@@ -14,17 +14,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.*;
 

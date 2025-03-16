@@ -20,7 +20,7 @@ public class ShortenUrlInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
             throws Exception {
-        String path = request.getRequestURI().substring(1); // "/" 제거
+        String path = request.getRequestURI().substring(1);
 
         // 특정 경로(API, 인증 관련 등)는 무시
         if (path.startsWith("api") || path.startsWith("auth") || path.startsWith("static") || path.startsWith("js") ||
